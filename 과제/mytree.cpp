@@ -3,46 +3,50 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 void myError(const char *msg);
 void get_fileInfo(const char *pathname);
+void mytree(char *pathname, int depth);
+void concat_path(char *dest, char *src1, char *src2);
 
 int main() {
-    char path[200];
-    getcwd(path, 200);
-    DIR *dirp = opendir(path);
-    struct dirent *dirInfo;
-
-    // mytree 함수 만들기 이 때 . 하고 ..은 다 무시
-    while ((dirInfo = readdir(dirp)) != NULL) {
-        char *dname = dirInfo->d_name;
-        get_fileInfo(dname);
-    }
-
-    get_fileInfo("./..");
+    char path[256];
+    getcwd(path, 256);
+    mytree(path, 0);
     return 0;
 }
+
 void myError(const char *msg) {
     perror(msg);
     exit(-1);
 }
+
 void get_fileInfo(const char *pathname) {
     struct stat fileInfo;
     struct passwd *userInfo;
     if (stat(pathname, &fileInfo) == -1) {
-        myError("stat() error! ");
+        myError("stat_get() error! ");
     }
-
     userInfo = getpwuid(fileInfo.st_uid);
+
+    char str[256];
+    strcpy(str, pathname);
+    char *temp = strtok(str, "/");
+    char *path;
+    while (temp != NULL) {
+        path = temp;
+        temp = strtok(NULL, "/");
+    }
 
     printf("  [");
     // inode number
-    printf("%ld ", fileInfo.st_ino);
+    printf("%-7ld ", fileInfo.st_ino);
     // device number
-    printf("%ld ", fileInfo.st_dev);
+    printf("%-2ld ", fileInfo.st_dev);
     // file type
     if (S_ISREG(fileInfo.st_mode)) {
         printf("-");
@@ -110,16 +114,68 @@ void get_fileInfo(const char *pathname) {
     printf(" ");
 
     // 소유자
-    printf("%s\t", userInfo->pw_name);
+    printf("%s", userInfo->pw_name);
     // file size
     int size = fileInfo.st_size;
     if (size < 1000) {
-        printf("  %d]", size);
+        printf("%8d]", size);
     } else {
         double ssize = size;
         ssize /= 1000;
-        printf("%0.1f%s]", ssize, "K");
+        printf("%7.1f%s]", ssize, "K");
     }
     // 파일 이름
-    printf("    %s\n", pathname);
+    printf("    %s\n", path);
+}
+
+void concat_path(char *dest, char *src1, char *src2) {
+    strcpy(dest, src1);
+    strcat(dest, "/");
+    strcat(dest, src2);
+}
+
+void mytree(char *pathname, int depth) {
+    DIR *dirp = opendir(pathname);
+    struct dirent *dirInfo;
+
+    if (depth == 0) {
+        printf(".\n");
+        while ((dirInfo = readdir(dirp)) != NULL) {
+            char *dname = dirInfo->d_name;
+            if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
+                continue;
+            char full_path[256];
+
+            concat_path(full_path, pathname, dname);
+            mytree(full_path, depth + 1);
+        }
+    } else {
+        struct stat fileInfo;
+        if (stat(pathname, &fileInfo) == -1) {
+            myError("stat_mytree() error! ");
+        }
+        char *tr;
+        if (S_ISDIR(fileInfo.st_mode)) {
+            for (int i = 1; i < depth; i++) {
+                printf("│   ");
+            }
+            printf("┝━━━━━━");
+            get_fileInfo(pathname);
+            while ((dirInfo = readdir(dirp)) != NULL) {
+                char *dname = dirInfo->d_name;
+                if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
+                    continue;
+                char full_path[256];
+                concat_path(full_path, pathname, dname);
+                mytree(full_path, depth + 1);
+            }
+        } else {
+            for (int i = 1; i < depth; i++) {
+                printf("│   ");
+            }
+            printf("┝━━━━━━");
+            get_fileInfo(pathname);
+        }
+    }
+    closedir(dirp);
 }
