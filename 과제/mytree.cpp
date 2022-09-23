@@ -10,13 +10,18 @@
 
 void myError(const char *msg);
 void get_fileInfo(const char *pathname);
-void mytree(char *pathname, int depth);
+void mytree(char *pathname, int depth, bool shape);
 void concat_path(char *dest, char *src1, char *src2);
+
+int dcnt = 0;
+int fcnt = 0;
+char treeshape[256] = "";
 
 int main() {
     char path[256];
     getcwd(path, 256);
-    mytree(path, 0);
+    mytree(path, 0, false);
+    printf("\n\n%d directories, %d files\n", dcnt, fcnt);
     return 0;
 }
 
@@ -134,46 +139,102 @@ void concat_path(char *dest, char *src1, char *src2) {
     strcat(dest, src2);
 }
 
-void mytree(char *pathname, int depth) {
+int cntDIR(DIR *dirp) {
+    struct dirent *dirInfo;
+    int cnt = 0;
+    while ((dirInfo = readdir(dirp)) != NULL) {
+        cnt++;
+    }
+    return cnt - 2;
+}
+
+char *cutString(char *t) {
+    char *temp = strtok(treeshape, t);
+    char *rt;
+    if (strcmp(t, "│\t") == 0 || strcmp(t, " \t") == 0) {
+        return "\0";
+    }
+    while (temp != NULL) {
+        strcat(rt, temp);
+        temp = strtok(NULL, " ");
+    }
+    return rt;
+}
+
+void mytree(char *pathname, int depth, bool shape) {
     DIR *dirp = opendir(pathname);
     struct dirent *dirInfo;
+    int a = 0;
 
     if (depth == 0) {
         printf(".\n");
+        int cnt = cntDIR(dirp);
+        closedir(dirp);
+        DIR *dirp = opendir(pathname);
+
         while ((dirInfo = readdir(dirp)) != NULL) {
             char *dname = dirInfo->d_name;
             if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
                 continue;
-            char full_path[256];
 
-            concat_path(full_path, pathname, dname);
-            mytree(full_path, depth + 1);
+            if (++a == cnt) {
+                char full_path[256];
+                concat_path(full_path, pathname, dname);
+                mytree(full_path, depth + 1, true);
+            } else {
+                char full_path[256];
+                concat_path(full_path, pathname, dname);
+                mytree(full_path, depth + 1, false);
+            }
         }
     } else {
         struct stat fileInfo;
+
         if (stat(pathname, &fileInfo) == -1) {
             myError("stat_mytree() error! ");
         }
-        char *tr;
         if (S_ISDIR(fileInfo.st_mode)) {
-            for (int i = 1; i < depth; i++) {
-                printf("│   ");
+            dcnt++;
+            printf(treeshape);
+            if (shape) {
+                printf("┕━━━━━");
+            } else {
+                printf("┝━━━━━");
             }
-            printf("┝━━━━━━");
+
+            int cnt = cntDIR(dirp);
+            closedir(dirp);
+            DIR *dirp = opendir(pathname);
             get_fileInfo(pathname);
+
+            strcat(treeshape, "│\t");
             while ((dirInfo = readdir(dirp)) != NULL) {
                 char *dname = dirInfo->d_name;
                 if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
                     continue;
-                char full_path[256];
-                concat_path(full_path, pathname, dname);
-                mytree(full_path, depth + 1);
+                if (++a == cnt) {
+                    char full_path[256];
+                    concat_path(full_path, pathname, dname);
+                    mytree(full_path, depth + 1, true);
+
+                } else {
+                    char full_path[256];
+                    concat_path(full_path, pathname, dname);
+                    mytree(full_path, depth + 1, false);
+                }
             }
+            // strcat(treeshape, " \t");
         } else {
-            for (int i = 1; i < depth; i++) {
-                printf("│   ");
+            fcnt++;
+            printf(treeshape);
+            if (shape) {
+                char *temp = cutString("│\t");
+                treeshape[0] = '\0';
+                strcat(treeshape, temp);
+                printf("┕━━━━━");
+            } else {
+                printf("┝━━━━━");
             }
-            printf("┝━━━━━━");
             get_fileInfo(pathname);
         }
     }
