@@ -22,7 +22,7 @@ int main() {
     char path[256];
     getcwd(path, 256);
     mytree(path, 0, false);
-    printf("\n\n%d directories, %d files\n", dcnt, fcnt);
+    printf("\n%d directories, %d files\n", dcnt, fcnt);
     return 0;
 }
 
@@ -48,9 +48,9 @@ void get_fileInfo(const char *pathname) {
         temp = strtok(NULL, "/");
     }
 
-    printf("  [");
+    printf(" [");
     // inode number
-    printf("%-7ld ", fileInfo.st_ino);
+    printf("%7ld ", fileInfo.st_ino);
     // device number
     printf("%-2ld ", fileInfo.st_dev);
     // file type
@@ -131,7 +131,7 @@ void get_fileInfo(const char *pathname) {
         printf("%8.1fK]", ssize);
     }
     // 파일 이름
-    printf("    %s\n", path);
+    printf("  %s\n", path);
 }
 
 void concat_path(char *dest, char *src1, char *src2) {
@@ -145,7 +145,7 @@ int cntDIR(DIR *dirp) {
     int cnt = 0;
     while ((dirInfo = readdir(dirp)) != NULL) {
         char *dname = dirInfo->d_name;
-        if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
+        if (strncmp(dname, ".", 1) == 0)
             continue;
         cnt++;
     }
@@ -161,9 +161,9 @@ void draw(void) {
     int l = strlen(treeshape);
     for (int i = 0; i < l; i++) {
         if (treeshape[i] == '1') {
-            printf("│\t");
+            printf("│   ");
         } else {
-            printf(" \t");
+            printf("    ");
         }
     }
 }
@@ -180,9 +180,9 @@ void mytree(char *pathname, int depth, bool shape) {
 
         while ((dirInfo = readdir(dirp)) != NULL) {
             char *dname = dirInfo->d_name;
-            if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
-                continue;
 
+            if (strncmp(dname, ".", 1) == 0)
+                continue;
             if (++a == cnt) {
                 char full_path[256];
                 concat_path(full_path, pathname, dname);
@@ -203,10 +203,10 @@ void mytree(char *pathname, int depth, bool shape) {
             draw();
             if (shape) {
                 strcat(treeshape, "0");
-                printf("┕━━━━━");
+                printf("└──");
             } else {
                 strcat(treeshape, "1");
-                printf("┝━━━━━");
+                printf("├──");
             }
 
             int cnt = cntDIR(dirp);
@@ -215,7 +215,7 @@ void mytree(char *pathname, int depth, bool shape) {
 
             while ((dirInfo = readdir(dirp)) != NULL) {
                 char *dname = dirInfo->d_name;
-                if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
+                if (strncmp(dname, ".", 1) == 0)
                     continue;
                 if (++a == cnt) {
                     char full_path[256];
@@ -234,9 +234,9 @@ void mytree(char *pathname, int depth, bool shape) {
             if (shape) {
                 cutstr();
                 strcat(treeshape, "0");
-                printf("┕━━━━━");
+                printf("└──");
             } else {
-                printf("┝━━━━━");
+                printf("├──");
             }
             get_fileInfo(pathname);
         } else {
