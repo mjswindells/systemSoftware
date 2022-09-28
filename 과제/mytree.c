@@ -1,6 +1,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -123,11 +124,11 @@ void get_fileInfo(const char *pathname) {
     // file size
     int size = fileInfo.st_size;
     if (size < 1000) {
-        printf("%8d]", size);
+        printf("%9d]", size);
     } else {
         double ssize = size;
         ssize /= 1000;
-        printf("%7.1f%s]", ssize, "K");
+        printf("%8.1fK]", ssize);
     }
     // 파일 이름
     printf("    %s\n", path);
@@ -143,22 +144,28 @@ int cntDIR(DIR *dirp) {
     struct dirent *dirInfo;
     int cnt = 0;
     while ((dirInfo = readdir(dirp)) != NULL) {
+        char *dname = dirInfo->d_name;
+        if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
+            continue;
         cnt++;
     }
-    return cnt - 2;
+    return cnt;
 }
 
-char *cutString(char *t) {
-    char *temp = strtok(treeshape, t);
-    char *rt;
-    if (strcmp(t, "│\t") == 0 || strcmp(t, " \t") == 0) {
-        return "\0";
+void cutstr(void) {
+    int l = strlen(treeshape);
+    treeshape[l - 1] = '\0';
+}
+
+void draw(void) {
+    int l = strlen(treeshape);
+    for (int i = 0; i < l; i++) {
+        if (treeshape[i] == '1') {
+            printf("│\t");
+        } else {
+            printf(" \t");
+        }
     }
-    while (temp != NULL) {
-        strcat(rt, temp);
-        temp = strtok(NULL, " ");
-    }
-    return rt;
 }
 
 void mytree(char *pathname, int depth, bool shape) {
@@ -169,8 +176,7 @@ void mytree(char *pathname, int depth, bool shape) {
     if (depth == 0) {
         printf(".\n");
         int cnt = cntDIR(dirp);
-        closedir(dirp);
-        DIR *dirp = opendir(pathname);
+        dirp = opendir(pathname);
 
         while ((dirInfo = readdir(dirp)) != NULL) {
             char *dname = dirInfo->d_name;
@@ -189,25 +195,24 @@ void mytree(char *pathname, int depth, bool shape) {
         }
     } else {
         struct stat fileInfo;
-
         if (stat(pathname, &fileInfo) == -1) {
             myError("stat_mytree() error! ");
         }
         if (S_ISDIR(fileInfo.st_mode)) {
             dcnt++;
-            printf(treeshape);
+            draw();
             if (shape) {
+                strcat(treeshape, "0");
                 printf("┕━━━━━");
             } else {
+                strcat(treeshape, "1");
                 printf("┝━━━━━");
             }
 
             int cnt = cntDIR(dirp);
-            closedir(dirp);
-            DIR *dirp = opendir(pathname);
+            dirp = opendir(pathname);
             get_fileInfo(pathname);
 
-            strcat(treeshape, "│\t");
             while ((dirInfo = readdir(dirp)) != NULL) {
                 char *dname = dirInfo->d_name;
                 if (strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0)
@@ -216,26 +221,26 @@ void mytree(char *pathname, int depth, bool shape) {
                     char full_path[256];
                     concat_path(full_path, pathname, dname);
                     mytree(full_path, depth + 1, true);
-
                 } else {
                     char full_path[256];
                     concat_path(full_path, pathname, dname);
                     mytree(full_path, depth + 1, false);
                 }
             }
-            // strcat(treeshape, " \t");
-        } else {
+            cutstr();
+        } else if (S_ISREG(fileInfo.st_mode)) {
             fcnt++;
-            printf(treeshape);
+            draw();
             if (shape) {
-                char *temp = cutString("│\t");
-                treeshape[0] = '\0';
-                strcat(treeshape, temp);
+                cutstr();
+                strcat(treeshape, "0");
                 printf("┕━━━━━");
             } else {
                 printf("┝━━━━━");
             }
             get_fileInfo(pathname);
+        } else {
+            return;
         }
     }
     closedir(dirp);
