@@ -1,4 +1,5 @@
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <stdbool.h>
@@ -60,8 +61,6 @@ void get_fileInfo(const char *pathname) {
         printf("d");
     } else if (S_ISLNK(fileInfo.st_mode)) {
         printf("l");
-    } else if (S_ISSOCK(fileInfo.st_mode)) {
-        printf("s");
     } else if (S_ISFIFO(fileInfo.st_mode)) {
         printf("p");
     } else if (S_ISCHR(fileInfo.st_mode)) {
@@ -140,18 +139,6 @@ void concat_path(char *dest, char *src1, char *src2) {
     strcat(dest, src2);
 }
 
-int cntDIR(DIR *dirp) {
-    struct dirent *dirInfo;
-    int cnt = 0;
-    while ((dirInfo = readdir(dirp)) != NULL) {
-        char *dname = dirInfo->d_name;
-        if (strncmp(dname, ".", 1) == 0)
-            continue;
-        cnt++;
-    }
-    return cnt;
-}
-
 void cutstr(void) {
     int l = strlen(treeshape);
     treeshape[l - 1] = '\0';
@@ -168,22 +155,38 @@ void draw(void) {
     }
 }
 
+int asort(const struct dirent **a, const struct dirent **b) {
+    return (strcmp((*a)->d_name, (*b)->d_name));
+}
+
+static int filter(const struct dirent *dirent) {
+    bool A;
+    if (strncmp(dirent->d_name, ".", 1) == 0) {
+        A = true;
+    } else {
+        A = false;
+    }
+    if (A) {
+    } else {
+    }
+}
+
 void mytree(char *pathname, int depth, bool shape) {
     DIR *dirp = opendir(pathname);
     struct dirent *dirInfo;
+    struct dirent **dirs;
     int a = 0;
 
     if (depth == 0) {
         printf(".\n");
-        int cnt = cntDIR(dirp);
-        dirp = opendir(pathname);
 
-        while ((dirInfo = readdir(dirp)) != NULL) {
-            char *dname = dirInfo->d_name;
+        int ret = scandir(pathname, &dirs, *filter, asort);
+        for (int i = 0; i < ret; i++) {
+            char *dname = dirs[i]->d_name;
 
             if (strncmp(dname, ".", 1) == 0)
                 continue;
-            if (++a == cnt) {
+            if (++a == ret) {
                 char full_path[256];
                 concat_path(full_path, pathname, dname);
                 mytree(full_path, depth + 1, true);
@@ -208,16 +211,15 @@ void mytree(char *pathname, int depth, bool shape) {
                 strcat(treeshape, "1");
                 printf("├──");
             }
-
-            int cnt = cntDIR(dirp);
-            dirp = opendir(pathname);
             get_fileInfo(pathname);
 
-            while ((dirInfo = readdir(dirp)) != NULL) {
-                char *dname = dirInfo->d_name;
+            int ret = scandir(pathname, &dirs, *filter, asort);
+            for (int i = 0; i < ret; i++) {
+                char *dname = dirs[i]->d_name;
+
                 if (strncmp(dname, ".", 1) == 0)
                     continue;
-                if (++a == cnt) {
+                if (++a == ret) {
                     char full_path[256];
                     concat_path(full_path, pathname, dname);
                     mytree(full_path, depth + 1, true);
