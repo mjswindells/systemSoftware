@@ -3,7 +3,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <locale.h>
-#include <ncurses.h>
+#include <ncursesw/curses.h>
 #include <pwd.h>
 #include <stack>
 #include <stdbool.h>
@@ -13,13 +13,15 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
 using namespace std;
 
 void myError(const char *msg);
-string get_fileInfo(const char *pathname);
+string get_fileInfo(const char *ppathname);
+bool isExist(const char *path);
 void printFile();
 void fillCurdir();
 void KeyEnter();
@@ -28,8 +30,14 @@ WINDOW *wcurdir, *wfile, *whelp, *wfileInfo;
 
 vector<string> CurDir;
 stack<string> frontDir, backDir;
+pid_t pid = 0;
+int status = 0;
 int y = 0;
 char pathname[256];
+char temppath[256];
+
+bool mv = false;
+bool cp = false;
 
 int main() {
 
@@ -42,8 +50,8 @@ int main() {
     // 특수한 키들 사용 가능 ( 방향키 같은 거 )
     keypad(stdscr, TRUE);
     nonl();
-    // setlocale(LC_ALL, "ko_KR.utf8");
-    // setlocale(LC_CTYPE, "ko_KR.utf8");
+    setlocale(LC_ALL, "ko_KR.utf8");
+    setlocale(LC_CTYPE, "ko_KR.utf8");
 
     getcwd(pathname, 256);
 
@@ -57,7 +65,7 @@ int main() {
     wcurdir = newwin(1, 300, 0, 0);
     wfile = newwin(10, 300, 1, 0);
     whelp = newwin(1, 300, 11, 0);
-    wfileInfo = newwin(50, 300, 12, 0);
+    wfileInfo = newwin(30, 300, 12, 0);
 
     wbkgd(wcurdir, COLOR_PAIR(2));
     wbkgd(wfile, COLOR_PAIR(1));
@@ -65,7 +73,7 @@ int main() {
     wbkgd(wfileInfo, COLOR_PAIR(1));
 
     wprintw(wcurdir, pathname);
-    wprintw(whelp, "QUIT: Q   UP: k(PgUp)  DOWN: j(PgDn) Move Dir: Enter");
+    wprintw(whelp, "HELP : H ");
 
     refresh();
     printFile();
@@ -106,16 +114,105 @@ int main() {
                 CurDir.erase(CurDir.begin());
                 frontDir.push(tmp);
             }
-        } else if (press == '\r' || press == 'e') {
-            KeyEnter();
-        } else {
-            continue;
+        } else if (press == '\r' || press == 'e' || press == 'E') {
+            if (mv) {
+                if (!strcmp(temppath, CurDir[y].c_str())) {
+                } else {
+                    KeyEnter();
+                }
+            } else {
+                KeyEnter();
+            }
+        } else if (press == 'h' || press == 'H') {
+            wclear(wfileInfo);
+            wprintw(wfileInfo, "CHECK\t: Enter\nQUIT\t: Q\nUP\t: "
+                               "k(PgUp)\nDOWN\t: j(PgDn)\nDELETE\t: D\n");
+            wprintw(wfileInfo, "MOVE\t: M\nCOPY\t: C\n");
+        } else if (press == 'd' || press == 'D') {
+            wclear(whelp);
+            wprintw(whelp, "delete? [y/n]");
+            wrefresh(whelp);
+            press = getchar();
+            if (press == 'y' || press == 'Y') {
+                pid = fork();
+                if (pid == 0) {
+                    execl("/bin/rm", "rm", "-rf", CurDir[y].c_str(),
+                          (char *)NULL);
+                    exit(0);
+                } else {
+                    wait(&status);
+                    fillCurdir();
+                    y = 0;
+                }
+            }
+        } else if (press == 'm' || press == 'M') {
+            if (mv) {
+                if (isExist(temppath)) {
+                    wclear(whelp);
+                    wprintw(whelp, "Exist same name");
+                    wrefresh(whelp);
+                    continue;
+                } else {
+                    pid = fork();
+                    if (pid == 0) {
+                        execl("/bin/mv", "mv", temppath, pathname,
+                              (char *)NULL);
+                        exit(0);
+                    } else {
+                        wait(&status);
+                        mv = false;
+                        strcpy(temppath, "");
+                        fillCurdir();
+                        y = 0;
+                    }
+                }
+            } else {
+                strcpy(temppath, CurDir[y].c_str());
+                mv = true;
+            }
+        } else if (press == 'c' || press == 'C') {
+            if (cp) {
+                if (isExist(temppath)) {
+                    wclear(whelp);
+                    wprintw(whelp, "Exist same name");
+                    wrefresh(whelp);
+                    continue;
+                } else {
+                    pid = fork();
+                    if (pid == 0) {
+                        execl("/bin/cp", "cp", "-r", temppath, pathname,
+                              (char *)NULL);
+                        exit(0);
+                    } else {
+                        wait(&status);
+                        cp = false;
+                        strcpy(temppath, "");
+                        fillCurdir();
+                        y = 0;
+                    }
+                }
+            } else {
+                strcpy(temppath, CurDir[y].c_str());
+                cp = true;
+            }
         }
 
         wclear(wfile);
+        wclear(whelp);
+        if (mv) {
+            wprintw(whelp, "Move : ");
+            wprintw(whelp, temppath);
+        } else if (cp) {
+            wprintw(whelp, "Copy : ");
+            wprintw(whelp, temppath);
+        } else {
+            wprintw(whelp, "HELP : H ");
+        }
         printFile();
         wmove(wfile, y, 0);
+
         wrefresh(wcurdir);
+        wrefresh(whelp);
         wrefresh(wfileInfo);
         wrefresh(wfile);
     }
@@ -130,10 +227,10 @@ void myError(const char *msg) {
     exit(-1);
 }
 
-string get_fileInfo(const char *pathname) {
+string get_fileInfo(const char *ppathname) {
     struct stat fileInfo;
     struct passwd *userInfo;
-    if (stat(pathname, &fileInfo) == -1) {
+    if (stat(ppathname, &fileInfo) == -1) {
         myError("stat_get() error! ");
     }
     userInfo = getpwuid(fileInfo.st_uid);
@@ -141,7 +238,7 @@ string get_fileInfo(const char *pathname) {
     string rtn = "";
 
     char str[256];
-    strcpy(str, pathname);
+    strcpy(str, ppathname);
     char *temp = strtok(str, "/");
     char *path;
     while (temp != NULL) {
@@ -237,6 +334,28 @@ string get_fileInfo(const char *pathname) {
     return rtn;
 }
 
+bool isExist(const char *path) {
+    char str[256];
+    strcpy(str, path);
+    char *temp = strtok(str, "/");
+    char *path_;
+    while (temp != NULL) {
+        path_ = temp;
+        temp = strtok(NULL, "/");
+    }
+    DIR *dirp = opendir(pathname);
+    struct dirent *dirInfo;
+    while ((dirInfo = readdir(dirp)) != NULL) {
+        if (!strcmp(path_, dirInfo->d_name)) {
+            closedir(dirp);
+            return true;
+        }
+    }
+
+    closedir(dirp);
+    return false;
+}
+
 void fillCurdir() {
     CurDir.clear();
     while (!frontDir.empty())
@@ -316,10 +435,28 @@ void KeyEnter() {
         fillCurdir();
         y = 0;
     } else {
-        // 파일일 때 코드
-        // 채워여함~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+        char buf[1025] = {
+            '\0',
+        };
+        int fd = open(CurDir[y].c_str(), O_RDONLY);
+        if (fd == -1) {
+            myError("open() error!");
+        }
+        ssize_t rsize = 0;
+        ssize_t tsize = 0;
+
         wclear(wfileInfo);
         wprintw(wfileInfo, CurDir[y].c_str());
         wprintw(wfileInfo, "\n");
+        do {
+            memset(buf, '\0', 1025);
+            rsize = read(fd, buf, 1024);
+            if (rsize == -1) {
+                myError("read() error!");
+            }
+            wprintw(wfileInfo, buf);
+            tsize += rsize;
+        } while (rsize > 0);
+        close(fd);
     }
 }
