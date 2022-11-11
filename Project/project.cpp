@@ -5,6 +5,7 @@
 #include <locale.h>
 #include <ncursesw/curses.h>
 #include <pwd.h>
+#include <queue>
 #include <stack>
 #include <stdbool.h>
 #include <stdio.h>
@@ -30,6 +31,8 @@ WINDOW *wcurdir, *wfile, *whelp, *wfileInfo;
 
 vector<string> CurDir;
 stack<string> frontDir, backDir;
+queue<string> tempDir;
+
 pid_t pid = 0;
 int status = 0;
 int y = 0;
@@ -77,7 +80,7 @@ int main() {
 
     refresh();
     printFile();
-    wmove(wfile, 0, 0);
+    wmove(wfile, 0, 34);
 
     wrefresh(wcurdir);
     wrefresh(whelp);
@@ -105,14 +108,21 @@ int main() {
             if (y < 9 && CurDir.size() - 1 > y) {
                 y++;
             } else {
-                if (backDir.empty())
-                    continue;
-                string tmp = backDir.top();
-                CurDir.push_back(tmp);
-                backDir.pop();
-                tmp = CurDir.front();
-                CurDir.erase(CurDir.begin());
-                frontDir.push(tmp);
+                if (!backDir.empty()) {
+                    string tmp = backDir.top();
+                    CurDir.push_back(tmp);
+                    backDir.pop();
+                    tmp = CurDir.front();
+                    CurDir.erase(CurDir.begin());
+                    frontDir.push(tmp);
+                } else if (!tempDir.empty()) {
+                    string tmp = tempDir.front();
+                    CurDir.push_back(tmp);
+                    tempDir.pop();
+                    tmp = CurDir.front();
+                    CurDir.erase(CurDir.begin());
+                    frontDir.push(tmp);
+                }
             }
         } else if (press == '\r' || press == 'e' || press == 'E') {
             if (mv) {
@@ -209,7 +219,7 @@ int main() {
             wprintw(whelp, "HELP : H ");
         }
         printFile();
-        wmove(wfile, y, 0);
+        wmove(wfile, y, 34);
 
         wrefresh(wcurdir);
         wrefresh(whelp);
@@ -363,6 +373,9 @@ void fillCurdir() {
         frontDir.pop();
     while (!backDir.empty())
         backDir.pop();
+    while (!tempDir.empty()) {
+        tempDir.pop();
+    }
 
     DIR *dirp = opendir(pathname);
     struct dirent **dirs;
@@ -378,7 +391,7 @@ void fillCurdir() {
         strcat(full_path, "/");
         strcat(full_path, dirs[i]->d_name);
         if (i > 9) {
-            backDir.push(full_path);
+            tempDir.push(full_path);
         } else {
             CurDir.push_back(full_path);
         }
