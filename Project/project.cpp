@@ -213,6 +213,7 @@ int main() {
 
         wrefresh(wcurdir);
         wrefresh(whelp);
+        wrefresh(whelp);
         wrefresh(wfileInfo);
         wrefresh(wfile);
     }
