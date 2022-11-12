@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "ipc.h": "c"
+        "ipc.h": "c",
+        "iostream": "cpp",
+        "array": "cpp",
+        "ostream": "cpp"
     }
 }
