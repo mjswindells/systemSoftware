@@ -2,11 +2,17 @@
 #include <fcntl.h>
 #include <iostream>
 #include <list>
+#include <queue>
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <vector>
 using namespace std;
+// enum Lecture { DataStructure, SystemSoftware, AI, MachineLearning };
+
+// vector<queue<Student>> v;
+
 int main(void) {
     // 학생들의 정보를 입력받고, 연결 리스트에 저장
     list<Student> stuList;
@@ -32,6 +38,8 @@ int main(void) {
         // List 뒤에 저장
         stuList.push_back(stu);
         cout << ">> Successfully added to list!" << endl;
+
+        // v[DataStructure].push(stu);
     }
     // 입력된 학생들의 정보를 저장할 파일 열기
     string filepath = "./StudentList.dat";
