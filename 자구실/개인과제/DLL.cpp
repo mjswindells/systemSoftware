@@ -45,9 +45,13 @@ class Dll {
 
     // 특정 위치에 노드 추가
     void add(Node *v, const int &e) {
+        // 현재 노드와 다음 노드를 연결하는 노드 생성 B라 하자
         Node *u = new Node(e, v->link_fore, v);
+        // w는 현재 노드의 다음 것 C라 하자
         Node *w = v->link_fore;
+        // C의 전 노드를 B로 설정
         w->link_back = u;
+        // A의 다음 노드를 B로 설정
         v->link_fore = u;
     }
     // 각각 맨 앞과 맨 뒤 노드 삭제
@@ -55,15 +59,19 @@ class Dll {
     void removeBack() { remove(tail->link_back); }
     // 특정 위치의 노드 삭제
     void remove(Node *v) {
+        // 비어 있으면 리턴
         if (isEmpty())
             return;
         Node *u = v->link_back;
         Node *w = v->link_fore;
-        u->link_fore = w;
-        w->link_back = u;
+        if (u != NULL)
+            u->link_fore = w;
+        if (w != NULL)
+            w->link_back = u;
         delete v;
     }
-    // 특정 원소를 가진 노드 삭제
+    // 특정 원소를 가진 노드를 하나 삭제
+    // 원소를 가진 노드가 없다면 아무 일도 안 일어남
     void remove(int e) {
         if (isEmpty())
             return;
@@ -77,6 +85,12 @@ class Dll {
         }
     }
 
+    // Head의 데이터 반환
+    int getHead() { return head->link_fore->data; }
+    // Tail의 데이터 반환
+    int getTail() { return tail->link_back->data; }
+
+    // Dll 전체 데이터 print
     void print() {
         Node *temp = head->link_fore;
         while (temp->link_fore != NULL) {
