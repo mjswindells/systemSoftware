@@ -90,6 +90,11 @@ class Dll {
     // Tail의 데이터 반환
     int getTail() { return tail->link_back->data; }
 
+    // Head 노드 반환
+    Node *getFront() { return head; }
+    // Tail 노드 반환
+    Node *getBack() { return tail; }
+
     // Dll 전체 데이터 print
     void print() {
         Node *temp = head->link_fore;

@@ -3,6 +3,9 @@
 class Queue {
 
   public:
+    int Size;
+    Dll *dll;
+
     Queue() {
         dll = new Dll();
         Size = 0;
@@ -45,7 +48,4 @@ class Queue {
     }
 
     void print() { dll->print(); }
-
-    int Size;
-    Dll *dll;
 };
